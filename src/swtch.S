@@ -170,6 +170,31 @@ _thrstart:
 .globl	_ENDMONITOR
 __ENDMONITOR:
 _ENDMONITOR:
+#elif ARDUINO_SAM_DUE
+.text
+.thumb
+.syntax unified
+.globl _swtch
+.align 2
+# C signature: _swtch(void *from, void *to)
+#   r0 contains from
+#   r1 contains to
+_swtch:
+	push {r2-r12, lr}
+	str sp, [r0]
+	ldr sp, [r1]
+	pop  {r2-r12, lr}
+	bx lr
+
+.globl _thrstart
+_thrstart:
+	blx r1
+	bl loop
+
+.globl _getSP
+_getSP:
+	mov r0, sp
+	bx lr
 #else
 Unsupported platform
 #endif
