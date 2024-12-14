@@ -177,13 +177,13 @@ _ENDMONITOR:
 .globl _swtch
 .align 2
 # C signature: _swtch(void *from, void *to)
-#   r0 contains from
-#   r1 contains to
+#   r0 contains from (pointer to the current thread's stack pointer)
+#   r1 contains to   (the stack pointer of the next thread to run)
 _swtch:
-	push {r2-r12, lr}
+	push {r0-r12, lr}
 	str sp, [r0]
-	ldr sp, [r1]
-	pop  {r2-r12, lr}
+	mov sp, r1
+	pop  {r0-r12, lr}
 	bx lr
 
 .globl _thrstart
