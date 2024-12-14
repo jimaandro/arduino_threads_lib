@@ -202,8 +202,7 @@ void Thread_init() {
     current_thread = &thread_table[0];
 }
 
-int Thread_new(int func(void *), void *args, size_t nbytes, ...) {
-
+int Thread_new(int func(void *, size_t), void *args, size_t nbytes, ...) {
     Thread *thread_descriptor = NULL;
 
     for (int i = 0; i < MAX_THREADS; i++)
@@ -226,25 +225,18 @@ int Thread_new(int func(void *), void *args, size_t nbytes, ...) {
 
     // Allocate stack frame
     thread_descriptor->sp = &thread_descriptor->stack[BYTE_OFFSET_TO_WORD(STACK_SIZE - THRSTART_FRAME_SIZE)];
-    // TODO
 
-    // Save sp in the stack
-    // thread_descriptor->sp[0] = (uint32_t)thread_descriptor->sp;
+    /* Save address of args to the location that will be restored in R0 after context switch */
+    thread_descriptor->sp[R0_OFFSET] = (uint32_t)args;
 
-    /* Save address of func to the location that will be restored in esi */
-    // thread_descriptor->sp[BYTE_OFFSET_TO_WORD(ESI_OFFSET)] = (uint32_t)func;
+    /* Save nbytes to the location that will be restored in R1 after context switch */
+    thread_descriptor->sp[R1_OFFSET] = (uint32_t)nbytes;
 
-    // /* Save address of thread_descriptor->args to the location that will be restored in edi */
-    // thread_descriptor->sp[BYTE_OFFSET_TO_WORD(EDI_OFFSET)] = (uint32_t)thread_descriptor->args;
+    /* Save address of func to the location that will be restored in R2 after context switch */
+    thread_descriptor->sp[R2_OFFSET] = (uint32_t)func;
 
-    // /* Save EBP to the stack */
-    // thread_descriptor->sp[BYTE_OFFSET_TO_WORD(EBP_OFFSET)] = (uint32_t)&thread_descriptor->sp[BYTE_OFFSET_TO_WORD(THRSTART_FRAME_SIZE) - 1];
-
-    // /* Save address of _thrstart to the location that will be used as return after context switch */
-    // thread_descriptor->sp[BYTE_OFFSET_TO_WORD(RIP_OFFSET)] = (uint32_t)_thrstart;
-
-
-    existing_threads++;
+    /* Save address of _thrstart to the location that will be used as return after context switch */
+    thread_descriptor->sp[LR_OFFSET] = (uint32_t)_thrstart | 1;
 
     return thread_descriptor->id;
 }

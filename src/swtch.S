@@ -187,14 +187,14 @@ _swtch:
 	bx lr
 
 .globl _thrstart
+.align 2
 _thrstart:
-	blx r1
-	bl loop
-
-.globl _getSP
-_getSP:
-	mov r0, sp
-	bx lr
+	blx r2
+	bl Thread_exit
+.globl	__ENDMONITOR
+.globl	_ENDMONITOR
+__ENDMONITOR:
+_ENDMONITOR:
 #else
 Unsupported platform
 #endif
