@@ -44,18 +44,12 @@ typedef struct Thread {
     uint32_t *stack; // used for free();
 
     int returned_value;
-
-    void *args;
 } Thread;
 
 static Thread thread_table[MAX_THREADS]; // ALL THREADS
 
-static Queue_t run_queue = NULL;       /* A queue holding the runnable threads */
-static Thread *current_thread = NULL;  /* The currently running thread */
-static Thread *pending_free = NULL;    /* A thread that has finished but hasn't been freed yet to allow for switching */
-static SymTable_T wait_queues = NULL;  /* A hashmap, Key: the thread being waited on, Value: a queue of threads waiting for the key */
-// static SymTable_T thread_table = NULL; /* A hashmap (really a set) holding the currently registered threads */
-static Queue_t free_tid_queue = NULL;
+static Thread *current_thread = NULL; /* The currently running thread */
+static Thread *pending_free = NULL;   /* A thread that has finished but hasn't been freed yet to allow for switching */
 
 static int existing_threads; // num of threads not INVALID
 static int waiting_for_zero;
@@ -88,34 +82,14 @@ static int get_new_tid() {
     return counter++;
 }
 
-static void deallocate_tid(int tid) {
-    enqueue(free_tid_queue, (void *)tid);
-}
-
-/* Deallocate a thread descriptor. After calling this, `thr` is NULL.  */
-static void Thread_destroy(Thread **thr) {
-    free((*thr)->args);
-    free(*thr);
-
-    *thr = NULL;
-}
-
-static void delete_queue_wrapper(const int pcKey, void *pvValue, void *pvExtra) {
-    (void)pcKey;
-    (void)pvExtra;
-    if (pvValue) {
-        delete_queue(pvValue);
-    }
+/* Deallocate a thread descriptor  */
+static void Thread_destroy(Thread *thr) {
+    free(thr->stack);
+    thr->stack = NULL;
 }
 
 /* Shutdown the threading system. Should be called before exiting  */
-static void Thread_shutdown() {
-    delete_queue(run_queue);
-    delete_queue(free_tid_queue);
-    SymTable_map(wait_queues, delete_queue_wrapper, NULL);
-    SymTable_free(wait_queues);
-    SymTable_free(thread_table);
-}
+static void Thread_shutdown() {}
 
 /* Return 1 if the thread `tid` exists, otherwise 0. */
 static int Thread_exists(int tid) {
@@ -170,20 +144,15 @@ void Thread_init() {
     for (int i = 0; i < MAX_THREADS; i++) {
         thread_table[i].status = INVALID;
     }
-    
-    existing_threads = 1;
+
     waiting_for_zero = 0;
-    // free_tid_queue = new_queue();
 
-
-    // memset(thread_descriptor->stack, 0, STACK_SIZE);
     thread_table[0].id = get_new_tid();
     thread_table[0].status = RUNNING;
-    thread_table[0].args = NULL;
+    thread_table[0].stack = NULL;
+    existing_threads = 1;
 
     set_preemption_timer();
-
-    // SymTable_put(thread_table, thread_descriptor->id, NULL);
 
     current_thread = &thread_table[0];
 }
@@ -203,9 +172,8 @@ int Thread_new(int func(void *, size_t), void *args, size_t nbytes, ...) {
         return -1;
 
     thread_descriptor->id = get_new_tid();
-    thread_descriptor->status = RUNNING; 
-
-    thread_descriptor->args = args;
+    thread_descriptor->status = RUNNING;
+    ++existing_threads;
 
     thread_descriptor->stack = malloc(STACK_SIZE);
 
@@ -233,10 +201,7 @@ void Thread_exit(int code) {
     }
 
     current_thread->status = INVALID;
-    free(current_thread->stack);
-
-    // SymTable_remove(thread_table, current_thread->id);
-    // deallocate_tid(current_thread->id);
+    --existing_threads;
 
     // Put all threads waiting for the current thread back into the run queue
     for (int i = 0; i < MAX_THREADS; i++) {
