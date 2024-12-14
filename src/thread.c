@@ -295,12 +295,7 @@ int Thread_join(int tid) {
     threadsafe_assert(current_thread && "Deadlock detected: No threads in run queue");
     _swtch(curr_sp, current_thread->sp);
 
-    // When we come back from the switch, the return value will have been placed in our struct
-    // Special case: Waiting for tid 0 returns 0.
-    if (tid)
-        return current_thread->returned_value;
-    else
-        return 0;
+    return current_thread->returned_value;
 }
 
 void Sem_init(T *s, int count) {
