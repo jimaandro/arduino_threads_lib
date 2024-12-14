@@ -8,15 +8,15 @@
 
 #define T Sem_T
 
-#define STACK_SIZE (8L * 1024 * 1024)
-#define ESI_OFFSET 4
-#define EDI_OFFSET 8
-#define EBP_OFFSET 12
-#define RIP_OFFSET 16
-#define THRSTART_FRAME_SIZE 20
+#define STACK_SIZE (8L * 1024)
+#define R0_OFFSET 0
+#define R1_OFFSET 1
+#define R2_OFFSET 2
+#define LR_OFFSET 13
+#define THRSTART_FRAME_SIZE (14 * 4)
 
 #ifndef MAX_THREADS
-     #define MAX_THREADS 8
+#define MAX_THREADS 8
 #endif
 
 #define BYTE_OFFSET_TO_WORD(offset) ((offset) / sizeof(uint32_t))
@@ -24,8 +24,8 @@
 #define PREEMPT_INTERVAL 100
 
 typedef enum {
-    INVALID = 1,    // Ready state
-    RUNNING,      // Running state
+    INVALID = 1, // Ready state
+    RUNNING,     // Running state
     WAITING      // Waiting state
 } ThreadState;
 
@@ -37,18 +37,18 @@ extern void _thrstart(void);
 
 typedef struct Thread {
     int id;
-    ThreadState  status; // (1) Ready (2) Running (3) Waiting (4) Delayed (5) Blocked 
+    ThreadState status;   // (1) Ready (2) Running (3) Waiting (4) Delayed (5) Blocked
     uint32_t wait_for_ID; // waiting for thread with ID = wait_for_ID
 
     uint32_t *sp;
-    uint32_t *stack;    // used for free();
+    uint32_t *stack; // used for free();
 
     int returned_value;
 
     void *args;
 } Thread;
 
-static Thread thread_table [MAX_THREADS];    // ALL THREADS
+static Thread thread_table[MAX_THREADS]; // ALL THREADS
 
 static Queue_t run_queue = NULL;       /* A queue holding the runnable threads */
 static Thread *current_thread = NULL;  /* The currently running thread */
@@ -60,25 +60,20 @@ static Queue_t free_tid_queue = NULL;
 static int existing_threads; // num of threads not INVALID
 static int waiting_for_zero;
 
-static Thread *select_runnable_thread()
-{
-    static int last_I=0;
-    Thread *sel_thread= NULL;
+static Thread *select_runnable_thread() {
+    static int last_I = 0;
+    Thread *sel_thread = NULL;
 
-    for (int i = 0; i < MAX_THREADS; i++)
-    {
-        if(thread_table[( i + last_I ) % MAX_THREADS].status==RUNNING)
-        {
-           sel_thread =  &thread_table[( i + last_I) % MAX_THREADS];
-           last_I = ( i + last_I + 1) % MAX_THREADS;
-           return sel_thread;
+    for (int i = 0; i < MAX_THREADS; i++) {
+        if (thread_table[(i + last_I) % MAX_THREADS].status == RUNNING) {
+            sel_thread = &thread_table[(i + last_I) % MAX_THREADS];
+            last_I = (i + last_I + 1) % MAX_THREADS;
+            return sel_thread;
         }
-
     }
+
     return NULL;
 }
-
-
 
 /* Return a free ID: Currently just return the last ID+1 */
 static int get_new_tid() {
@@ -172,14 +167,8 @@ static void set_preemption_timer() {
 }
 
 void Thread_init() {
-    // run_queue = new_queue();
-    // wait_queues = SymTable_new();
-    // thread_table = SymTable_new();
-    
-    for (int i = 0; i < MAX_THREADS; i++)
-    {
-        thread_table[i].status=INVALID;
-        
+    for (int i = 0; i < MAX_THREADS; i++) {
+        thread_table[i].status = INVALID;
     }
     
     existing_threads = 1;
@@ -202,14 +191,14 @@ void Thread_init() {
 int Thread_new(int func(void *, size_t), void *args, size_t nbytes, ...) {
     Thread *thread_descriptor = NULL;
 
-    for (int i = 0; i < MAX_THREADS; i++)
-    {
-       if(thread_table[i].status==INVALID)
-       {
-           thread_descriptor = &thread_table[i];
-       }
+    for (int i = 0; i < MAX_THREADS; i++) {
+        if (thread_table[i].status == INVALID) {
+            thread_descriptor = &thread_table[i];
+
+            break;
+        }
     }
-    
+
     if (!thread_descriptor)
         return -1;
 
@@ -250,10 +239,8 @@ void Thread_exit(int code) {
     // deallocate_tid(current_thread->id);
 
     // Put all threads waiting for the current thread back into the run queue
-    for (int i = 0; i < MAX_THREADS; i++)
-    {
-        if((thread_table[i].status==WAITING) && (current_thread->id== thread_table[i].wait_for_ID ))
-        {
+    for (int i = 0; i < MAX_THREADS; i++) {
+        if ((thread_table[i].status == WAITING) && (current_thread->id == thread_table[i].wait_for_ID)) {
             thread_table[i].returned_value = code;
             thread_table[i].status = RUNNING;
         }
@@ -268,11 +255,8 @@ void Thread_exit(int code) {
             Thread_shutdown();
             exit(code);
         } else if (existing_threads == 1) {
-            
-            for (int i = 0; i < MAX_THREADS; i++)
-            {
-                if((thread_table[i].status==WAITING) && (thread_table[i].wait_for_ID == 0))
-                {
+            for (int i = 0; i < MAX_THREADS; i++) {
+                if ((thread_table[i].status == WAITING) && (thread_table[i].wait_for_ID == 0)) {
                     waiting_for_zero--;
 
                     thread_table[i].returned_value = 0;
@@ -326,19 +310,16 @@ int Thread_join(int tid) {
         return 0;
     }
 
-
     // If there is such a queue, insert the current queue in that. If tid == 0 and there is already a thread in that queue, raise error
     // Otherwise create a new queue an the insert
 
     threadsafe_assert((tid || waiting_for_zero == 0) && "Runtime error: Only a single thread can call join(0)");
-    
+
     current_thread->status = WAITING;
     current_thread->wait_for_ID = tid;
-    if (tid==0)
-    {
+    if (tid == 0) {
         waiting_for_zero++;
     }
-
 
     uint32_t **curr_sp = &current_thread->sp;
 
