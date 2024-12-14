@@ -73,12 +73,6 @@ static Thread *select_runnable_thread() {
 static int get_new_tid() {
     static int counter = 1;
 
-    assert((queue_count(free_tid_queue) > 0 || counter < INT_MAX) && "Failed to get new tid");
-
-    if (queue_count(free_tid_queue) > 0) {
-        return (int)dequeue(free_tid_queue);
-    }
-
     return counter++;
 }
 
@@ -93,7 +87,13 @@ static void Thread_shutdown() {}
 
 /* Return 1 if the thread `tid` exists, otherwise 0. */
 static int Thread_exists(int tid) {
-    return SymTable_contains(thread_table, tid);
+    for (int i = 0; i < MAX_THREADS; i++) {
+        if (thread_table[i].id == tid && thread_table[i].status == RUNNING) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 /* Runs every PREEMPT_INTERVAL usecs to switch between threads.
@@ -175,7 +175,9 @@ int Thread_new(int func(void *, size_t), void *args, size_t nbytes, ...) {
     thread_descriptor->status = RUNNING;
     ++existing_threads;
 
-    thread_descriptor->stack = malloc(STACK_SIZE);
+    if (!thread_descriptor->stack) {
+        thread_descriptor->stack = malloc(STACK_SIZE);
+    }
 
     // Allocate stack frame
     thread_descriptor->sp = &thread_descriptor->stack[BYTE_OFFSET_TO_WORD(STACK_SIZE - THRSTART_FRAME_SIZE)];
@@ -196,8 +198,8 @@ int Thread_new(int func(void *, size_t), void *args, size_t nbytes, ...) {
 }
 
 void Thread_exit(int code) {
-    if (pending_free) {
-        Thread_destroy(&pending_free);
+    if (pending_free && pending_free->stack) {
+        Thread_destroy(pending_free);
     }
 
     current_thread->status = INVALID;
