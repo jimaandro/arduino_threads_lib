@@ -1,7 +1,4 @@
 #include "thread.h"
-#include "queue.h"
-#include "sem.h"
-#include "symtable.h"
 #include "threadsafe_libc.h"
 #include <limits.h>
 #include <signal.h>
