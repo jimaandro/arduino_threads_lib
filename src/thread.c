@@ -298,6 +298,7 @@ int Thread_join(int tid) {
     return current_thread->returned_value;
 }
 
+/*
 void Sem_init(T *s, int count) {
     threadsafe_assert(s && "Semaphore cannot be NULL");
     s->count = count;
@@ -329,3 +330,4 @@ void Sem_signal(T *s) {
     if (!queue_isEmpty(s->queue))
         queue_extend(s->queue, run_queue);
 }
+*/
