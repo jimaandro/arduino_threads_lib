@@ -192,7 +192,7 @@ int Thread_new(int func(void *, size_t), void *args, size_t nbytes, ...) {
     thread_descriptor->sp[R2_OFFSET] = (uint32_t)func;
 
     /* Save address of _thrstart to the location that will be used as return after context switch */
-    thread_descriptor->sp[LR_OFFSET] = (uint32_t)_thrstart | 1;
+    thread_descriptor->sp[LR_OFFSET] = ((uint32_t)_thrstart) | 1;
 
     return thread_descriptor->id;
 }
@@ -240,7 +240,6 @@ void Thread_exit(int code) {
         } else {
             threadsafe_assert(0 && "Deadlock detected: No threads in run queue, many threads remaining sleeping");
         }
-
     } else {
         uint32_t **curr_sp = &current_thread->sp;
 
@@ -260,6 +259,7 @@ void Thread_pause() {
 
     // Runqueue should have at least one element, the thread that called Thread_pause itself
     threadsafe_assert(current_thread && "Something went REALLY wrong, contact the library developer");
+
     _swtch(curr_sp, &current_thread->sp);
 }
 
@@ -292,6 +292,7 @@ int Thread_join(int tid) {
     current_thread = select_runnable_thread();
 
     threadsafe_assert(current_thread && "Deadlock detected: No threads in run queue");
+
     _swtch(curr_sp, &current_thread->sp);
 
     return current_thread->returned_value;
