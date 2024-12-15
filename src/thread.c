@@ -24,10 +24,10 @@
 #define PREEMPT_INTERVAL 100
 
 typedef enum {
-    INVALID = 1, // Ready state
-    RUNNING,     // Running state
-    WAITING  ,    // Waiting state
-    WAITING_FOR_SEM     //WAITING FOR SEMAPHORE
+    INVALID = 1,    // Ready state
+    RUNNING,        // Running state
+    WAITING,        // Waiting state
+    WAITING_FOR_SEM // WAITING FOR SEMAPHORE
 } ThreadState;
 
 void _STARTMONITOR() {}
@@ -38,9 +38,9 @@ extern void _thrstart(void);
 
 typedef struct Thread {
     int id;
-    ThreadState status;   // (1) Ready (2) Running (3) Waiting (4) Delayed (5) Blocked
+    ThreadState status; // (1) Ready (2) Running (3) Waiting (4) Delayed (5) Blocked
+
     uint32_t wait_for_ID; // waiting for thread with ID = wait_for_ID
-    
     uint32_t waiting_for_sem;
 
     uint32_t *sp;
@@ -182,7 +182,7 @@ int Thread_new(int func(void *, size_t), void *args, size_t nbytes, ...) {
 
     thread_descriptor->id = get_new_tid();
     thread_descriptor->status = RUNNING;
-    thread_descriptor->waiting_for_sem=0;
+    thread_descriptor->waiting_for_sem = 0;
     ++existing_threads;
 
     if (!thread_descriptor->stack) {
@@ -308,7 +308,6 @@ int Thread_join(int tid) {
     return current_thread->returned_value;
 }
 
-
 void Sem_init(T *s, int count) {
     threadsafe_assert(s && "Semaphore cannot be NULL");
     s->count = count;
@@ -319,11 +318,11 @@ void Sem_wait(T *s) {
     // While the semaphore's count isn't greater than 0, the current thread blocks
     while (!(s->count > 0)) {
         current_thread->status = WAITING_FOR_SEM;
-        current_thread->waiting_for_sem = s->sem_ID ;
+        current_thread->waiting_for_sem = s->sem_ID;
         // enqueue(s->queue, current_thread);
 
         uint32_t **curr_sp = &current_thread->sp;
-         current_thread = select_runnable_thread();
+        current_thread = select_runnable_thread();
         // current_thread = dequeue(run_queue);
 
         threadsafe_assert(current_thread && "Deadlock detected: No threads in run queue");
@@ -348,4 +347,3 @@ void Sem_signal(T *s) {
     // if (!queue_isEmpty(s->queue))
     //     queue_extend(s->queue, run_queue);
 }
-
