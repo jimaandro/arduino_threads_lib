@@ -5,7 +5,7 @@
 
 typedef struct T { /* opaque! */
     int count;
-    void *queue;
+    int sem_ID;
 } T;
 
 extern void Sem_init(T *s, int count);
