@@ -26,7 +26,8 @@
 typedef enum {
     INVALID = 1, // Ready state
     RUNNING,     // Running state
-    WAITING      // Waiting state
+    WAITING  ,    // Waiting state
+    WAITING_FOR_SEM     //WAITING FOR SEMAPHORE
 } ThreadState;
 
 void _STARTMONITOR() {}
@@ -39,6 +40,8 @@ typedef struct Thread {
     int id;
     ThreadState status;   // (1) Ready (2) Running (3) Waiting (4) Delayed (5) Blocked
     uint32_t wait_for_ID; // waiting for thread with ID = wait_for_ID
+    
+    uint32_t waiting_for_sem;
 
     uint32_t *sp;
     uint32_t *stack; // used for free();
@@ -71,6 +74,12 @@ static Thread *select_runnable_thread() {
 
 /* Return a free ID: Currently just return the last ID+1 */
 static int get_new_tid() {
+    static int counter = 1;
+
+    return counter++;
+}
+
+static int get_new_sid() {
     static int counter = 1;
 
     return counter++;
@@ -173,6 +182,7 @@ int Thread_new(int func(void *, size_t), void *args, size_t nbytes, ...) {
 
     thread_descriptor->id = get_new_tid();
     thread_descriptor->status = RUNNING;
+    thread_descriptor->waiting_for_sem=0;
     ++existing_threads;
 
     if (!thread_descriptor->stack) {
@@ -298,22 +308,24 @@ int Thread_join(int tid) {
     return current_thread->returned_value;
 }
 
-/*
+
 void Sem_init(T *s, int count) {
     threadsafe_assert(s && "Semaphore cannot be NULL");
     s->count = count;
-    s->queue = new_queue();
+    s->sem_ID = get_new_sid();
 }
 
 void Sem_wait(T *s) {
     // While the semaphore's count isn't greater than 0, the current thread blocks
     while (!(s->count > 0)) {
-        current_thread->status = WAITING;
-        enqueue(s->queue, current_thread);
+        current_thread->status = WAITING_FOR_SEM;
+        current_thread->waiting_for_sem = s->sem_ID ;
+        // enqueue(s->queue, current_thread);
 
         uint32_t **curr_sp = &current_thread->sp;
+         current_thread = select_runnable_thread();
+        // current_thread = dequeue(run_queue);
 
-        current_thread = dequeue(run_queue);
         threadsafe_assert(current_thread && "Deadlock detected: No threads in run queue");
         current_thread->status = RUNNING;
         _swtch(curr_sp, &current_thread->sp);
@@ -327,7 +339,13 @@ void Sem_signal(T *s) {
     ++s->count;
 
     // Put all threads wait'ing on the semaphore back in the run queue
-    if (!queue_isEmpty(s->queue))
-        queue_extend(s->queue, run_queue);
+    for (int i = 0; i < MAX_THREADS; i++) {
+        if ((thread_table[i].status == WAITING_FOR_SEM) && (current_thread->id == thread_table[i].waiting_for_sem)) {
+            // thread_table[i].returned_value = code;
+            thread_table[i].status = RUNNING;
+        }
+    }
+    // if (!queue_isEmpty(s->queue))
+    //     queue_extend(s->queue, run_queue);
 }
-*/
+
