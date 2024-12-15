@@ -319,11 +319,9 @@ void Sem_wait(T *s) {
     while (!(s->count > 0)) {
         current_thread->status = WAIT_FOR_SEM;
         current_thread->waiting_for_sem = s->sem_ID;
-        // enqueue(s->queue, current_thread);
 
         uint32_t **curr_sp = &current_thread->sp;
         current_thread = select_runnable_thread();
-        // current_thread = dequeue(run_queue);
 
         threadsafe_assert(current_thread && "Deadlock detected: No threads in run queue");
         current_thread->status = RUNNING;
@@ -340,10 +338,7 @@ void Sem_signal(T *s) {
     // Put all threads wait'ing on the semaphore back in the run queue
     for (int i = 0; i < MAX_THREADS; i++) {
         if ((thread_table[i].status == WAIT_FOR_SEM) && (current_thread->id == thread_table[i].waiting_for_sem)) {
-            // thread_table[i].returned_value = code;
             thread_table[i].status = RUNNING;
         }
     }
-    // if (!queue_isEmpty(s->queue))
-    //     queue_extend(s->queue, run_queue);
 }
