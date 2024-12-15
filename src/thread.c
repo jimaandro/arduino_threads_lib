@@ -233,11 +233,10 @@ void Thread_exit(int code) {
 
                     pending_free = current_thread;
                     current_thread = &thread_table[i];
-                    _swtch(curr_sp, current_thread->sp);
+                    _swtch(curr_sp, &current_thread->sp);
                 }
             }
             threadsafe_assert(0 && "Deadlock detected: No threads in run queue, one task remaining, not joining with 0");
-
         } else {
             threadsafe_assert(0 && "Deadlock detected: No threads in run queue, many threads remaining sleeping");
         }
@@ -247,7 +246,7 @@ void Thread_exit(int code) {
 
         pending_free = current_thread;
         current_thread = next_thread;
-        _swtch(curr_sp, next_thread->sp);
+        _swtch(curr_sp, &next_thread->sp);
     }
 }
 
@@ -261,7 +260,7 @@ void Thread_pause() {
 
     // Runqueue should have at least one element, the thread that called Thread_pause itself
     threadsafe_assert(current_thread && "Something went REALLY wrong, contact the library developer");
-    _swtch(curr_sp, current_thread->sp);
+    _swtch(curr_sp, &current_thread->sp);
 }
 
 int Thread_join(int tid) {
@@ -293,7 +292,7 @@ int Thread_join(int tid) {
     current_thread = select_runnable_thread();
 
     threadsafe_assert(current_thread && "Deadlock detected: No threads in run queue");
-    _swtch(curr_sp, current_thread->sp);
+    _swtch(curr_sp, &current_thread->sp);
 
     return current_thread->returned_value;
 }

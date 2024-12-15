@@ -178,11 +178,11 @@ _ENDMONITOR:
 .align 2
 # C signature: _swtch(void *from, void *to)
 #   r0 contains from (pointer to the current thread's stack pointer)
-#   r1 contains to   (the stack pointer of the next thread to run)
+#   r1 contains to   (pointer to the stack pointer of the next thread to run)
 _swtch:
 	push {r0-r12, lr}
 	str sp, [r0]
-	mov sp, r1
+	ldr sp, [r1]
 	pop  {r0-r12, lr}
 	bx lr
 
