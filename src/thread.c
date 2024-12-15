@@ -24,10 +24,10 @@
 #define PREEMPT_INTERVAL 100
 
 typedef enum {
-    INVALID = 1,    // Ready state
-    RUNNING,        // Running state
-    WAITING,        // Waiting state
-    WAITING_FOR_SEM // WAITING FOR SEMAPHORE
+    INVALID,      // This thread is not valid and shouldn't run
+    RUNNING,      // Running or able to run
+    WAIT_AT_JOIN, // Waiting at Thread_join for some thread(s) to exit
+    WAIT_FOR_SEM  // Waiting for a semaphore to be raised
 } ThreadState;
 
 void _STARTMONITOR() {}
@@ -217,7 +217,7 @@ void Thread_exit(int code) {
 
     // Put all threads waiting for the current thread back into the run queue
     for (int i = 0; i < MAX_THREADS; i++) {
-        if ((thread_table[i].status == WAITING) && (current_thread->id == thread_table[i].wait_for_ID)) {
+        if ((thread_table[i].status == WAIT_AT_JOIN) && (current_thread->id == thread_table[i].wait_for_ID)) {
             thread_table[i].returned_value = code;
             thread_table[i].status = RUNNING;
         }
@@ -233,7 +233,7 @@ void Thread_exit(int code) {
             exit(code);
         } else if (existing_threads == 1) {
             for (int i = 0; i < MAX_THREADS; i++) {
-                if ((thread_table[i].status == WAITING) && (thread_table[i].wait_for_ID == 0)) {
+                if ((thread_table[i].status == WAIT_AT_JOIN) && (thread_table[i].wait_for_ID == 0)) {
                     waiting_for_zero--;
 
                     thread_table[i].returned_value = 0;
@@ -291,7 +291,7 @@ int Thread_join(int tid) {
 
     threadsafe_assert((tid || waiting_for_zero == 0) && "Runtime error: Only a single thread can call join(0)");
 
-    current_thread->status = WAITING;
+    current_thread->status = WAIT_AT_JOIN;
     current_thread->wait_for_ID = tid;
     if (tid == 0) {
         waiting_for_zero++;
@@ -317,7 +317,7 @@ void Sem_init(T *s, int count) {
 void Sem_wait(T *s) {
     // While the semaphore's count isn't greater than 0, the current thread blocks
     while (!(s->count > 0)) {
-        current_thread->status = WAITING_FOR_SEM;
+        current_thread->status = WAIT_FOR_SEM;
         current_thread->waiting_for_sem = s->sem_ID;
         // enqueue(s->queue, current_thread);
 
@@ -339,7 +339,7 @@ void Sem_signal(T *s) {
 
     // Put all threads wait'ing on the semaphore back in the run queue
     for (int i = 0; i < MAX_THREADS; i++) {
-        if ((thread_table[i].status == WAITING_FOR_SEM) && (current_thread->id == thread_table[i].waiting_for_sem)) {
+        if ((thread_table[i].status == WAIT_FOR_SEM) && (current_thread->id == thread_table[i].waiting_for_sem)) {
             // thread_table[i].returned_value = code;
             thread_table[i].status = RUNNING;
         }
