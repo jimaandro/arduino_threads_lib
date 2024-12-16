@@ -1,4 +1,5 @@
 #include "thread.h"
+#include "sem.h"
 #include "threadsafe_libc.h"
 #include <limits.h>
 #include <signal.h>
@@ -311,14 +312,14 @@ int Thread_join(int tid) {
 void Sem_init(T *s, int count) {
     threadsafe_assert(s && "Semaphore cannot be NULL");
     s->count = count;
-    s->sem_ID = get_new_sid();
+    s->id = get_new_sid();
 }
 
 void Sem_wait(T *s) {
     // While the semaphore's count isn't greater than 0, the current thread blocks
     while (!(s->count > 0)) {
         current_thread->status = WAIT_FOR_SEM;
-        current_thread->waiting_for_sem = s->sem_ID;
+        current_thread->waiting_for_sem = s->id;
 
         uint32_t **curr_sp = &current_thread->sp;
         current_thread = select_runnable_thread();

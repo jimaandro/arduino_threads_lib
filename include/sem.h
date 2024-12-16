@@ -4,8 +4,8 @@
 #define T Sem_T
 
 typedef struct T { /* opaque! */
+    int id;
     int count;
-    int sem_ID;
 } T;
 
 extern void Sem_init(T *s, int count);
