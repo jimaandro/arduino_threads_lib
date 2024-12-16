@@ -9,7 +9,10 @@
 
 #define T Sem_T
 
+#ifndef STACK_SIZE
 #define STACK_SIZE (8L * 1024)
+#endif
+
 #define R0_OFFSET 0
 #define R1_OFFSET 1
 #define R2_OFFSET 2
