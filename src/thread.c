@@ -192,6 +192,7 @@ int Thread_new(int func(void *, size_t), void *args, size_t nbytes, ...) {
     if (!thread_descriptor->stack) {
         thread_descriptor->stack = malloc(STACK_SIZE);
     }
+    threadsafe_assert(thread_descriptor->stack && "Cannot allocate stack");
 
     // Allocate stack frame
     thread_descriptor->sp = &thread_descriptor->stack[BYTE_OFFSET_TO_WORD(STACK_SIZE - THRSTART_FRAME_SIZE)];
@@ -212,8 +213,9 @@ int Thread_new(int func(void *, size_t), void *args, size_t nbytes, ...) {
 }
 
 void Thread_exit(int code) {
-    if (pending_free && pending_free->stack) {
+    if (pending_free && pending_free->stack && pending_free->status == INVALID) {
         Thread_destroy(pending_free);
+        pending_free = NULL;
     }
 
     current_thread->status = INVALID;
