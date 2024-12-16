@@ -200,7 +200,7 @@ int Thread_new(int func(void *, size_t), void *args, size_t nbytes, ...) {
     thread_descriptor->sp[R1_OFFSET] = (uint32_t)nbytes;
 
     /* Save address of func to the location that will be restored in R2 after context switch */
-    thread_descriptor->sp[R2_OFFSET] = (uint32_t)func;
+    thread_descriptor->sp[R2_OFFSET] = ((uint32_t)func) | 1;
 
     /* Save address of _thrstart to the location that will be used as return after context switch */
     thread_descriptor->sp[LR_OFFSET] = ((uint32_t)_thrstart) | 1;
