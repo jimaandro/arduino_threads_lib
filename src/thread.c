@@ -338,7 +338,7 @@ void Sem_signal(T *s) {
 
     // Put all threads wait'ing on the semaphore back in the run queue
     for (int i = 0; i < MAX_THREADS; i++) {
-        if ((thread_table[i].status == WAIT_FOR_SEM) && (current_thread->id == thread_table[i].waiting_for_sem)) {
+        if ((thread_table[i].status == WAIT_FOR_SEM) && (s->id == thread_table[i].waiting_for_sem)) {
             thread_table[i].status = RUNNING;
         }
     }
