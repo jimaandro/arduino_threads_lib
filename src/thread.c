@@ -1,11 +1,10 @@
 #include "thread.h"
+#include "DueTimerLib.h"
 #include "sem.h"
 #include "threadsafe_libc.h"
 #include <limits.h>
 #include <signal.h>
 #include <stdint.h>
-#include <sys/time.h>
-// #include <ucontext.h>
 
 #define T Sem_T
 
@@ -61,6 +60,8 @@ static Thread *pending_free = NULL;   /* A thread that has finished but hasn't b
 static int existing_threads; // num of threads not INVALID
 static int waiting_for_zero;
 
+static Timer_t *timer;
+
 static Thread *select_runnable_thread() {
     static int last_I = 0;
     Thread *sel_thread = NULL;
@@ -112,45 +113,14 @@ static int Thread_exists(int tid) {
 /* Runs every PREEMPT_INTERVAL usecs to switch between threads.
  * Doesn't run if at the time of the timer signal a thread library
  * function is still executing or while executing a threadsafe_libc function.
- *
- * Doesn't reenable the SIGVTALRM signal after exiting; The running
- * thread might change from a different function call. To avoid completely
- * disabling the signal after an timer tick, set option SA_NODEFER */
-static void timer_handler(int sig, siginfo_t *info, void *ucontext) {
-    threadsafe_assert(sig == SIGVTALRM);
-    threadsafe_assert(info->si_signo == SIGVTALRM);
-
-    ucontext_t *context = (ucontext_t *)ucontext;
-
-    int pc = context->uc_mcontext.gregs[REG_EIP];
-
-    if ((int)_STARTMONITOR <= pc && pc <= (int)_ENDMONITOR)
-        return;
-
+ */
+static void handler(Context *ctx) {
     if (in_libc_flag)
+        return;
+    if ((int)_STARTMONITOR <= ctx->return_PC && ctx->return_PC <= (int)_ENDMONITOR)
         return;
 
     Thread_pause();
-}
-
-/* Initialize the preemption timer */
-static void set_preemption_timer() {
-    struct itimerval tv;
-    tv.it_interval.tv_sec = 0;
-    tv.it_interval.tv_usec = PREEMPT_INTERVAL;
-    tv.it_value.tv_sec = 0;
-    tv.it_value.tv_usec = PREEMPT_INTERVAL;
-
-    setitimer(ITIMER_VIRTUAL, &tv, NULL);
-
-    struct sigaction sa;
-
-    memset(&sa, 0, sizeof(struct sigaction));
-    // SIGINFO to use sigaction instead of sighandler, NODEFER to not disable signals after each interrupt
-    sa.sa_flags = SA_SIGINFO | SA_NODEFER;
-    sa.sa_sigaction = timer_handler;
-
-    sigaction(SIGVTALRM, &sa, NULL);
 }
 
 void Thread_init() {
@@ -165,9 +135,10 @@ void Thread_init() {
     thread_table[0].stack = NULL;
     existing_threads = 1;
 
-    set_preemption_timer();
-
     current_thread = &thread_table[0];
+
+    timer = get_available_timer();
+    set_timer(timer, 100000, handler);
 }
 
 int Thread_new(int func(void *, size_t), void *args, size_t nbytes, ...) {
